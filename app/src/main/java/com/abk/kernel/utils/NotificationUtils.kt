@@ -13,6 +13,7 @@ import android.os.Build
 import android.os.Bundle
 import android.net.Uri
 import android.provider.Settings
+import android.util.Log
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
 import androidx.core.content.ContextCompat
@@ -37,6 +38,7 @@ object NotificationUtils {
     const val NOTIF_ID_BUILD = 1001
     const val NOTIF_ID_DOWNLOAD = 1002
 
+    private const val TAG = "NotificationUtils"
     private const val EXTRA_MIUI_FOCUS_PARAM = "miui.focus.param"
     private const val EXTRA_MIUI_FOCUS_PICS = "miui.focus.pics"
     private const val MIUI_FOCUS_BUILD_ICON = "miui.focus.pic_abk_build"
@@ -236,7 +238,7 @@ object NotificationUtils {
         if (!canPostNotifications(context)) return
         runCatching {
             NotificationManagerCompat.from(context).notify(id, notification)
-        }
+        }.onFailure { Log.w(TAG, "Failed to post notification $id", it) }
     }
 
     private fun canPostNotifications(context: Context): Boolean {

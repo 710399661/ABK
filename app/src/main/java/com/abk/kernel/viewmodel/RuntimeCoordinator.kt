@@ -1,6 +1,7 @@
 package com.abk.kernel.viewmodel
 
 import android.app.Application
+import android.util.Log
 import androidx.annotation.StringRes
 import com.abk.kernel.R
 import com.abk.kernel.data.model.*
@@ -21,6 +22,7 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
+private const val RUNTIME_COORDINATOR_TAG = "RuntimeCoordinator"
 private const val OFFICIAL_RUNTIME_MODULE_REPOSITORY_ID = "official-runtime-module-repository"
 private const val OFFICIAL_RUNTIME_MODULE_REPOSITORY_URL =
     "https://raw.githubusercontent.com/Magisk-Modules-Alt-Repo/json-v2/refs/heads/main/json/modules.json"
@@ -360,8 +362,12 @@ class RuntimeCoordinator(
                     val profile = AbkKsuNative.readProfile(cleanPackage, baseApp.uid)
                     prefs.clearPendingRootGrantProfileRecovery()
                     profile
-                }.getOrElse {
+                }.getOrElse { error ->
+                    Log.w(RUNTIME_COORDINATOR_TAG, "Failed to read root grant profile for $cleanPackage", error)
                     runCatching { prefs.clearPendingRootGrantProfileRecovery() }
+                        .onFailure {
+                            Log.w(RUNTIME_COORDINATOR_TAG, "Failed to clear pending profile recovery record", it)
+                        }
                     null
                 }
                 Triple(

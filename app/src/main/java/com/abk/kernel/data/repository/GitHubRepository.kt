@@ -12,6 +12,7 @@ import com.google.gson.JsonArray
 import com.google.gson.JsonElement
 import com.google.gson.JsonObject
 import com.google.gson.JsonParser
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import okhttp3.OkHttpClient
@@ -53,7 +54,7 @@ open class GitHubRepository(
         } else {
             Result.Error("Device code request failed: ${resp.code()}", resp.code())
         }
-    }.getOrElse { Result.Error(it.message ?: "Unknown error") }
+    }.getOrElse { Result.Error(it.toErrorMessage()) }
 
     open suspend fun pollToken(deviceCode: String): Result<AccessTokenResponse> = runCatching {
         val resp = authService.pollAccessToken(clientId, deviceCode)
@@ -62,7 +63,7 @@ open class GitHubRepository(
         } else {
             Result.Error("Token poll failed: ${resp.code()}", resp.code())
         }
-    }.getOrElse { Result.Error(it.message ?: "Unknown error") }
+    }.getOrElse { Result.Error(it.toErrorMessage()) }
 
     // ── Module Catalogs ───────────────────────────────────────────────────
 
@@ -81,7 +82,7 @@ open class GitHubRepository(
                     .build()
                 val response = runCatching { publicHttpClient.newCall(request).execute() }
                     .getOrElse {
-                        lastError = it.message ?: tr(R.string.gh_network_request_failed)
+                        lastError = it.toErrorMessage(tr(R.string.gh_network_request_failed))
                         null
                     } ?: continue
 
@@ -95,7 +96,7 @@ open class GitHubRepository(
                     return@withContext runCatching { parseExternalModuleConf(body) }
                         .fold(
                             onSuccess = { Result.Success(it) },
-                            onFailure = { Result.Error(tr(R.string.gh_module_conf_invalid, it.message ?: tr(R.string.gh_format_error))) }
+                            onFailure = { Result.Error(tr(R.string.gh_module_conf_invalid, it.toErrorMessage(tr(R.string.gh_format_error)))) }
                         )
                 }
             }
@@ -118,7 +119,7 @@ open class GitHubRepository(
                     .build()
                 val response = runCatching { publicHttpClient.newCall(request).execute() }
                     .getOrElse {
-                        lastError = it.message ?: tr(R.string.gh_network_request_failed)
+                        lastError = it.toErrorMessage(tr(R.string.gh_network_request_failed))
                         null
                     } ?: continue
 
@@ -131,7 +132,7 @@ open class GitHubRepository(
                     val body = resp.body?.string().orEmpty()
                     val catalog = runCatching { parseModuleCatalogDocument(body, repositoryUrl) }
                         .getOrElse {
-                            lastError = tr(R.string.gh_json_parse_failed, it.message ?: tr(R.string.gh_format_error))
+                            lastError = tr(R.string.gh_json_parse_failed, it.toErrorMessage(tr(R.string.gh_format_error)))
                             return@use
                         }
 
@@ -164,7 +165,7 @@ open class GitHubRepository(
                     .build()
                 val response = runCatching { publicHttpClient.newCall(request).execute() }
                     .getOrElse {
-                        lastError = it.message ?: tr(R.string.gh_network_request_failed)
+                        lastError = it.toErrorMessage(tr(R.string.gh_network_request_failed))
                         null
                     } ?: continue
 
@@ -177,7 +178,7 @@ open class GitHubRepository(
                     val body = resp.body?.string().orEmpty()
                     val catalog = runCatching { parseRuntimeModuleCatalogDocument(body, repositoryUrl) }
                         .getOrElse {
-                            lastError = tr(R.string.gh_json_parse_failed, it.message ?: tr(R.string.gh_format_error))
+                            lastError = tr(R.string.gh_json_parse_failed, it.toErrorMessage(tr(R.string.gh_format_error)))
                             return@use
                         }
 
@@ -209,7 +210,7 @@ open class GitHubRepository(
             .build()
 
         val response = runCatching { publicHttpClient.newCall(request).execute() }
-            .getOrElse { return@withContext Result.Error(it.message ?: tr(R.string.gh_network_request_failed)) }
+            .getOrElse { return@withContext Result.Error(it.toErrorMessage(tr(R.string.gh_network_request_failed))) }
 
         response.use { resp ->
             if (!resp.isSuccessful) {
@@ -220,7 +221,7 @@ open class GitHubRepository(
             return@withContext runCatching { parseAppUpdateMetadata(body) }
                 .fold(
                     onSuccess = { Result.Success(it) },
-                    onFailure = { Result.Error(it.message ?: tr(R.string.gh_format_error)) }
+                    onFailure = { Result.Error(it.toErrorMessage(tr(R.string.gh_format_error))) }
                 )
         }
     }
@@ -233,7 +234,7 @@ open class GitHubRepository(
             val resp = api.getAuthenticatedUser()
             if (resp.isSuccessful && resp.body() != null) Result.Success(resp.body()!!)
             else Result.Error("Failed to get user: ${resp.code()}", resp.code())
-        }.getOrElse { Result.Error(it.message ?: "Unknown error") }
+        }.getOrElse { Result.Error(it.toErrorMessage()) }
     }
 
     // ── Fork ──────────────────────────────────────────────────────────────
@@ -251,7 +252,7 @@ open class GitHubRepository(
                 resp.code() == 404 -> Result.Success(null)
                 else -> Result.Error("Failed to check fork: ${resp.code()}", resp.code())
             }
-        }.getOrElse { Result.Error(it.message ?: "Unknown error") }
+        }.getOrElse { Result.Error(it.toErrorMessage()) }
     }
 
     open suspend fun forkRepo(owner: String, repo: String): Result<GitHubRepo> {
@@ -260,7 +261,7 @@ open class GitHubRepository(
             val resp = api.forkRepo(owner, repo)
             if (resp.isSuccessful && resp.body() != null) Result.Success(resp.body()!!)
             else Result.Error("Fork failed: ${resp.code()}", resp.code())
-        }.getOrElse { Result.Error(it.message ?: "Unknown error") }
+        }.getOrElse { Result.Error(it.toErrorMessage()) }
     }
 
     suspend fun getRepositorySecretPublicKey(owner: String, repo: String): Result<GitHubSecretPublicKey> {
@@ -269,7 +270,7 @@ open class GitHubRepository(
             val resp = api.getRepositorySecretPublicKey(owner, repo)
             if (resp.isSuccessful && resp.body() != null) Result.Success(resp.body()!!)
             else Result.Error("Get repo secret public key failed: ${resp.code()}", resp.code())
-        }.getOrElse { Result.Error(it.message ?: "Unknown error") }
+        }.getOrElse { Result.Error(it.toErrorMessage()) }
     }
 
     suspend fun listRepositorySecrets(owner: String, repo: String): Result<List<GitHubRepositorySecret>> {
@@ -281,7 +282,7 @@ open class GitHubRepository(
             } else {
                 Result.Error("List repo secrets failed: ${resp.code()}", resp.code())
             }
-        }.getOrElse { Result.Error(it.message ?: "Unknown error") }
+        }.getOrElse { Result.Error(it.toErrorMessage()) }
     }
 
     suspend fun createOrUpdateRepositorySecret(
@@ -309,7 +310,7 @@ open class GitHubRepository(
             )
             if (resp.isSuccessful) Result.Success(Unit)
             else Result.Error("Update repo secret failed: ${resp.code()}", resp.code())
-        }.getOrElse { Result.Error(it.message ?: "Unknown error") }
+        }.getOrElse { Result.Error(it.toErrorMessage()) }
     }
 
     suspend fun deleteRepositorySecret(
@@ -324,7 +325,7 @@ open class GitHubRepository(
                 resp.isSuccessful || resp.code() == 404 -> Result.Success(Unit)
                 else -> Result.Error("Delete repo secret failed: ${resp.code()}", resp.code())
             }
-        }.getOrElse { Result.Error(it.message ?: "Unknown error") }
+        }.getOrElse { Result.Error(it.toErrorMessage()) }
     }
 
     open suspend fun checkBehind(
@@ -343,7 +344,7 @@ open class GitHubRepository(
             )
             if (resp.isSuccessful && resp.body() != null) Result.Success(resp.body()!!)
             else Result.Error("Compare failed: ${resp.code()}", resp.code())
-        }.getOrElse { Result.Error(it.message ?: "Unknown error") }
+        }.getOrElse { Result.Error(it.toErrorMessage()) }
     }
 
     suspend fun syncFork(username: String, repo: String, branch: String): Result<SyncForkResponse> {
@@ -352,7 +353,7 @@ open class GitHubRepository(
             val resp = api.syncFork(username, repo, SyncForkRequest(branch))
             if (resp.isSuccessful && resp.body() != null) Result.Success(resp.body()!!)
             else Result.Error("Sync failed: ${resp.code()}", resp.code())
-        }.getOrElse { Result.Error(it.message ?: "Unknown error") }
+        }.getOrElse { Result.Error(it.toErrorMessage()) }
     }
 
     // ── Workflows ─────────────────────────────────────────────────────────
@@ -368,7 +369,7 @@ open class GitHubRepository(
             } else {
                 Result.Error("List workflows failed: ${resp.code()}", resp.code())
             }
-        }.getOrElse { Result.Error(it.message ?: "Unknown error") }
+        }.getOrElse { Result.Error(it.toErrorMessage()) }
     }
 
     suspend fun getWorkflowId(owner: String, repo: String, workflowFile: String): Result<Long> {
@@ -391,7 +392,7 @@ open class GitHubRepository(
             val resp = api.dispatchWorkflow(owner, repo, workflowId.toString(), WorkflowDispatchRequest(ref, inputs))
             if (resp.isSuccessful) Result.Success(Unit)
             else Result.Error("Dispatch failed: ${resp.code()}", resp.code())
-        }.getOrElse { Result.Error(it.message ?: "Unknown error") }
+        }.getOrElse { Result.Error(it.toErrorMessage()) }
     }
 
     suspend fun enableWorkflow(owner: String, repo: String, workflowId: Long): Result<Unit> {
@@ -400,7 +401,7 @@ open class GitHubRepository(
             val resp = api.enableWorkflow(owner, repo, workflowId.toString())
             if (resp.isSuccessful) Result.Success(Unit)
             else Result.Error("Enable workflow failed: ${resp.code()}", resp.code())
-        }.getOrElse { Result.Error(it.message ?: "Unknown error") }
+        }.getOrElse { Result.Error(it.toErrorMessage()) }
     }
 
     suspend fun listRecentRuns(
@@ -423,7 +424,7 @@ open class GitHubRepository(
             } else {
                 Result.Error("List runs failed: ${resp.code()}", resp.code())
             }
-        }.getOrElse { Result.Error(it.message ?: "Unknown error") }
+        }.getOrElse { Result.Error(it.toErrorMessage()) }
     }
 
     suspend fun getWorkflowRun(owner: String, repo: String, runId: Long): Result<WorkflowRun> {
@@ -432,7 +433,7 @@ open class GitHubRepository(
             val resp = api.getWorkflowRun(owner, repo, runId)
             if (resp.isSuccessful && resp.body() != null) Result.Success(resp.body()!!)
             else Result.Error("Get run failed: ${resp.code()}", resp.code())
-        }.getOrElse { Result.Error(it.message ?: "Unknown error") }
+        }.getOrElse { Result.Error(it.toErrorMessage()) }
     }
 
     suspend fun deleteWorkflowRun(owner: String, repo: String, runId: Long): Result<Unit> {
@@ -443,7 +444,7 @@ open class GitHubRepository(
                 resp.isSuccessful || resp.code() == 404 -> Result.Success(Unit)
                 else -> Result.Error("Delete run failed: ${resp.code()}", resp.code())
             }
-        }.getOrElse { Result.Error(it.message ?: "Unknown error") }
+        }.getOrElse { Result.Error(it.toErrorMessage()) }
     }
 
     suspend fun cancelWorkflowRun(owner: String, repo: String, runId: Long): Result<Unit> {
@@ -454,7 +455,7 @@ open class GitHubRepository(
                 resp.isSuccessful || resp.code() == 409 -> Result.Success(Unit)
                 else -> Result.Error("Cancel run failed: ${resp.code()}", resp.code())
             }
-        }.getOrElse { Result.Error(it.message ?: "Unknown error") }
+        }.getOrElse { Result.Error(it.toErrorMessage()) }
     }
 
     suspend fun listRunJobs(owner: String, repo: String, runId: Long): Result<List<WorkflowJob>> {
@@ -467,7 +468,7 @@ open class GitHubRepository(
             } else {
                 Result.Error("List jobs failed: ${resp.code()}", resp.code())
             }
-        }.getOrElse { Result.Error(it.message ?: "Unknown error") }
+        }.getOrElse { Result.Error(it.toErrorMessage()) }
     }
 
     suspend fun downloadJobLogs(owner: String, repo: String, jobId: Long): Result<String> {
@@ -506,7 +507,7 @@ open class GitHubRepository(
             } else {
                 Result.Error("List artifacts failed: ${resp.code()}", resp.code())
             }
-        }.getOrElse { Result.Error(it.message ?: "Unknown error") }
+        }.getOrElse { Result.Error(it.toErrorMessage()) }
     }
 
     suspend fun listReleases(owner: String, repo: String, perPage: Int = 100): Result<List<GitHubReleaseSummary>> {
@@ -525,7 +526,7 @@ open class GitHubRepository(
                 page += 1
             }
             Result.Success(collected)
-        }.getOrElse { Result.Error(it.message ?: "Unknown error") }
+        }.getOrElse { Result.Error(it.toErrorMessage()) }
     }
 
     suspend fun getReleaseByTag(owner: String, repo: String, tag: String): Result<GitHubRelease?> {
@@ -537,7 +538,7 @@ open class GitHubRepository(
                 resp.code() == 404 -> Result.Success(null)
                 else -> Result.Error("Get release failed: ${resp.code()}", resp.code())
             }
-        }.getOrElse { Result.Error(it.message ?: "Unknown error") }
+        }.getOrElse { Result.Error(it.toErrorMessage()) }
     }
 
     suspend fun listReleaseAssets(
@@ -561,7 +562,7 @@ open class GitHubRepository(
                 page += 1
             }
             Result.Success(collected)
-        }.getOrElse { Result.Error(it.message ?: "Unknown error") }
+        }.getOrElse { Result.Error(it.toErrorMessage()) }
     }
 
     suspend fun createRelease(owner: String, repo: String, request: CreateReleaseRequest): Result<GitHubRelease> {
@@ -570,7 +571,7 @@ open class GitHubRepository(
             val resp = api.createRelease(owner, repo, request)
             if (resp.isSuccessful && resp.body() != null) Result.Success(resp.body()!!)
             else Result.Error("Create release failed: ${resp.code()}", resp.code())
-        }.getOrElse { Result.Error(it.message ?: "Unknown error") }
+        }.getOrElse { Result.Error(it.toErrorMessage()) }
     }
 
     suspend fun updateRelease(owner: String, repo: String, releaseId: Long, request: CreateReleaseRequest): Result<GitHubRelease> {
@@ -579,7 +580,7 @@ open class GitHubRepository(
             val resp = api.updateRelease(owner, repo, releaseId, request)
             if (resp.isSuccessful && resp.body() != null) Result.Success(resp.body()!!)
             else Result.Error("Update release failed: ${resp.code()}", resp.code())
-        }.getOrElse { Result.Error(it.message ?: "Unknown error") }
+        }.getOrElse { Result.Error(it.toErrorMessage()) }
     }
 
     suspend fun deleteReleaseAsset(owner: String, repo: String, assetId: Long): Result<Unit> {
@@ -590,7 +591,7 @@ open class GitHubRepository(
                 resp.isSuccessful || resp.code() == 404 -> Result.Success(Unit)
                 else -> Result.Error("Delete release asset failed: ${resp.code()}", resp.code())
             }
-        }.getOrElse { Result.Error(it.message ?: "Unknown error") }
+        }.getOrElse { Result.Error(it.toErrorMessage()) }
     }
 
     suspend fun uploadReleaseAsset(
@@ -610,7 +611,7 @@ open class GitHubRepository(
             .post(content.toRequestBody(contentType.toMediaType()))
             .build()
         val response = runCatching { publicHttpClient.newCall(request).execute() }
-            .getOrElse { return@withContext Result.Error(it.message ?: "Unknown error") }
+            .getOrElse { return@withContext Result.Error(it.toErrorMessage()) }
         response.use { resp ->
             if (!resp.isSuccessful) {
                 return@withContext Result.Error("Upload release asset failed: ${resp.code}", resp.code)
@@ -643,7 +644,7 @@ open class GitHubRepository(
                     } else {
                         Result.Error("Download release asset failed: ${resp.code()}", resp.code())
                     }
-                }.getOrElse { Result.Error(it.message ?: "Unknown error") }
+                }.getOrElse { Result.Error(it.toErrorMessage()) }
             }
             is Result.Error -> assets
             Result.Loading -> Result.Loading
@@ -671,7 +672,19 @@ open class GitHubRepository(
         return output.toString()
     }
 
+    /**
+     * Builds a user visible message for a failed request. Coroutine cancellation is rethrown so an
+     * aborted call never surfaces as [Result.Error].
+     */
+    private fun Throwable.toErrorMessage(fallback: String? = null): String {
+        if (this is CancellationException) throw this
+        return message?.takeIf { it.isNotBlank() }
+            ?: fallback
+            ?: this::class.java.simpleName.ifBlank { "Exception" }
+    }
+
     private fun Throwable.toDownloadLogMessage(prefix: String): String {
+        if (this is CancellationException) throw this
         val type = this::class.java.simpleName.ifBlank { "Exception" }
         val detail = message?.takeIf { it.isNotBlank() }?.let { " - $it" }.orEmpty()
         return "$prefix: $type$detail"

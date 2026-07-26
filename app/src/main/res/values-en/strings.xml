@@ -68,6 +68,7 @@
     <string name="auth_code_title">Device verification</string>
     <string name="auth_code_desc">Open the following address in a browser and enter the verification code to authorize:</string>
     <string name="open_browser">Open browser</string>
+    <string name="open_link_failed">Cannot open link</string>
     <string name="waiting_auth">Waiting for authorization…</string>
     <string name="github_auth_title">Authorize GitHub access</string>
     <string name="github_auth_desc">ABK will request repo and workflow permissions to check/sync your fork and trigger kernel build workflows.</string>

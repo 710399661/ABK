@@ -68,6 +68,7 @@
     <string name="auth_code_title">Проверка устройства</string>
     <string name="auth_code_desc">Откройте указанный адрес в браузере и введите код подтверждения, чтобы завершить авторизацию:</string>
     <string name="open_browser">Открыть браузер</string>
+    <string name="open_link_failed">Не удалось открыть ссылку</string>
     <string name="waiting_auth">Ожидание авторизации…</string>
     <string name="github_auth_title">Авторизовать доступ к GitHub</string>
     <string name="github_auth_desc">ABK запросит права repo и workflow, чтобы проверять/синхронизировать ваш fork и запускать workflow-процессы сборки ядра.</string>

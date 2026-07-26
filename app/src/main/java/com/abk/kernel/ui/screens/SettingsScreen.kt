@@ -9,6 +9,7 @@ import android.net.Uri
 import android.os.Build
 import android.os.Environment
 import android.provider.Settings
+import android.util.Log
 import android.widget.Toast
 import androidx.core.content.FileProvider
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -59,6 +60,7 @@ import com.abk.kernel.extensions.AbkExtensionManagerScreen
 import com.abk.kernel.utils.DownloadDirectoryUtils
 import com.abk.kernel.utils.DownloadUtils
 import com.abk.kernel.utils.LocaleHelper
+import com.abk.kernel.utils.openExternalLink
 import com.abk.kernel.ui.components.AbkScreenHorizontalPadding
 import com.abk.kernel.ui.components.AbkSegmentedButtonOption
 import com.abk.kernel.ui.components.AbkSingleChoiceSegmentedButtonRow
@@ -98,6 +100,9 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+
+private const val SETTINGS_LOG_TAG = "SettingsScreen"
+
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun SettingsScreen(
@@ -1110,7 +1115,8 @@ private fun SecuritySettingsGroup(
         scope.launch {
             val text = try {
                 readTextFromUri(context, uri)
-            } catch (_: Throwable) {
+            } catch (error: Throwable) {
+                Log.w(SETTINGS_LOG_TAG, "Failed to read signing key from $uri", error)
                 importError = context.getString(R.string.settings_security_import_read_failed)
                 return@launch
             }
@@ -1795,7 +1801,7 @@ private fun ThemeSettingsScreen(
                     uri,
                     Intent.FLAG_GRANT_READ_URI_PERMISSION
                 )
-            }
+            }.onFailure { Log.w(SETTINGS_LOG_TAG, "Failed to persist background image permission", it) }
             onBackgroundImageChange(uri.toString())
         }
     }
@@ -2492,9 +2498,7 @@ private fun sourceRepoUrl(): String =
     "https://github.com/${BuildConfig.SOURCE_REPO_OWNER}/${BuildConfig.SOURCE_REPO_NAME}"
 
 private fun openUrl(context: android.content.Context, url: String) {
-    runCatching {
-        context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)))
-    }
+    context.openExternalLink(url)
 }
 
 private fun launchAppUpdateInstaller(context: android.content.Context, apkPath: String) {
@@ -2858,7 +2862,7 @@ private fun DownloadDirectorySettingsItem(
                     uri,
                     Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION
                 )
-            }
+            }.onFailure { Log.w(SETTINGS_LOG_TAG, "Failed to persist download directory permission", it) }
             val selectedPath = DownloadDirectoryUtils.directoryPathFromTreeUri(uri)
             if (selectedPath == null) {
                 Toast.makeText(context, unsupportedTreeMessage, Toast.LENGTH_SHORT).show()

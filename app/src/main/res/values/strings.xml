@@ -68,6 +68,7 @@
     <string name="auth_code_title">设备验证</string>
     <string name="auth_code_desc">请在浏览器中访问以下地址，输入验证码完成授权：</string>
     <string name="open_browser">打开浏览器</string>
+    <string name="open_link_failed">无法打开链接</string>
     <string name="waiting_auth">等待授权中…</string>
     <string name="github_auth_title">授权 GitHub 访问</string>
     <string name="github_auth_desc">ABK 将请求 repo 与 workflow 权限，用于检查/同步您的 fork，并触发内核构建工作流。</string>

@@ -9,6 +9,7 @@ import android.content.IntentFilter
 import android.net.Uri
 import android.os.Build
 import android.os.SystemClock
+import android.util.Log
 import androidx.annotation.StringRes
 import androidx.core.content.ContextCompat
 import com.abk.kernel.utils.LocaleHelper
@@ -391,7 +392,9 @@ class MainViewModel @JvmOverloads constructor(
                     monitoredRunIds.remove(run.id)
                     processBuildQueue()
                 }
-            } catch (_: Exception) {}
+            } catch (error: Exception) {
+                Log.w(LOG_TAG, "Failed to apply build status broadcast: $status", error)
+            }
         }
     }
 
@@ -2993,7 +2996,7 @@ class MainViewModel @JvmOverloads constructor(
             if (parent?.listFiles()?.isEmpty() == true) {
                 parent.delete()
             }
-        }
+        }.onFailure { Log.w(LOG_TAG, "Failed to delete downloaded artifact ${artifact.filePath}", it) }
     }
 
     private suspend fun monitorMirrorAndResolveDownloadUrl(
@@ -3031,7 +3034,9 @@ class MainViewModel @JvmOverloads constructor(
             }
             else -> return null
         }
-        github.enableWorkflow(username, repoName, workflowId)
+        (github.enableWorkflow(username, repoName, workflowId) as? Result.Error)?.let {
+            Log.w(LOG_TAG, "Failed to enable mirror workflow $workflowId: ${it.message}")
+        }
         val previousRunId = when (val prior = github.listRecentRuns(username, repoName, 1, workflowId)) {
             is Result.Success -> prior.data.firstOrNull()?.id
             else -> null
@@ -5267,6 +5272,7 @@ class MainViewModel @JvmOverloads constructor(
 
     override fun onCleared() {
         runCatching { getApplication<Application>().unregisterReceiver(statusReceiver) }
+            .onFailure { Log.w(LOG_TAG, "Failed to unregister build status receiver", it) }
         super.onCleared()
     }
 }
@@ -6229,6 +6235,7 @@ private fun List<CustomExternalModule>?.toWorkflowInput(): String = this.orEmpty
 
 private const val KERNEL_WORKFLOW_FILE = "kernel-custom.yml"
 private const val FORK_ARTIFACT_SIGNING_SECRET_NAME = "ABK_ARTIFACT_SIGNING_KEY_BASE64"
+private const val LOG_TAG = "MainViewModel"
 private const val FORK_ARTIFACT_SIGNING_RELEASE_TAG = "abk-artifact-key"
 private const val FORK_ARTIFACT_SIGNING_PUBLIC_KEY_ASSET_NAME = "abk-artifact-signing-public.pem"
 private const val ONEPLUS_WORKFLOW_FILE = "oneplus-custom.yml"

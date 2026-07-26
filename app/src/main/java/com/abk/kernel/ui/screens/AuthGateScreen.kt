@@ -5,8 +5,6 @@ package com.abk.kernel.ui.screens
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
-import android.content.Intent
-import android.net.Uri
 import androidx.compose.animation.*
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.background
@@ -36,6 +34,7 @@ import com.abk.kernel.ui.components.ShimmerLinearProgress
 import com.abk.kernel.ui.components.ExpressiveSectionCard
 import com.abk.kernel.ui.components.ExpressiveStatusChip
 import com.abk.kernel.ui.theme.LocalUiSurfaceAlpha
+import com.abk.kernel.utils.openExternalLink
 import com.abk.kernel.viewmodel.AuthStep
 import com.abk.kernel.viewmodel.MainViewModel
 import kotlin.math.pow
@@ -454,11 +453,7 @@ private fun DeviceCodeCard(
                     Spacer(Modifier.width(6.dp))
                     Text(if (copied) stringResource(R.string.copied) else stringResource(R.string.copy))
                 }
-                Button(onClick = {
-                    runCatching {
-                        context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(verificationUri)))
-                    }
-                }) {
+                Button(onClick = { context.openExternalLink(verificationUri) }) {
                     Icon(Icons.Default.OpenInBrowser, null, modifier = Modifier.size(18.dp))
                     Spacer(Modifier.width(6.dp))
                     Text(stringResource(R.string.open_browser))

@@ -96,6 +96,7 @@ import com.abk.kernel.ui.components.ExpressiveSwitchItem
 import com.abk.kernel.ui.components.ExpressiveTopBar
 import com.abk.kernel.ui.theme.appPageBackgroundColor
 import com.abk.kernel.ui.theme.uiSurfaceColor
+import com.abk.kernel.utils.openExternalLink
 import com.abk.kernel.viewmodel.BuildPlanImportPreview
 import com.abk.kernel.viewmodel.BuildPlanShareScope
 import com.abk.kernel.viewmodel.CustomKernelOptionSummary
@@ -1009,7 +1010,7 @@ fun BuildScreen(
             confirmButton = {
                 Button(
                     onClick = {
-                        runCatching { uriHandler.openUri(prompt.actionUrl) }
+                        context.openExternalLink(prompt.actionUrl, uriHandler::openUri)
                         vm.dismissWorkflowEnablementPrompt()
                     }
                 ) {

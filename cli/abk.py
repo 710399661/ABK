@@ -429,6 +429,11 @@ def validate_oneplus_build(args, device_info=None):
     return errors, warnings
 
 
+def _warn(message):
+    """Report a recoverable problem instead of failing silently."""
+    print(f"abk: warning: {message}", file=sys.stderr)
+
+
 def load_config():
     if CONFIG_FILE.exists():
         try:
@@ -436,9 +441,11 @@ def load_config():
                 CONFIG_DIR.chmod(0o700)
                 CONFIG_FILE.chmod(0o600)
             data = json.loads(CONFIG_FILE.read_text(encoding="utf-8"))
-            return data if isinstance(data, dict) else {}
-        except (OSError, UnicodeError, json.JSONDecodeError):
-            pass
+            if isinstance(data, dict):
+                return data
+            _warn(f"ignoring config {CONFIG_FILE}: expected a JSON object")
+        except (OSError, UnicodeError, json.JSONDecodeError) as exc:
+            _warn(f"ignoring unreadable config {CONFIG_FILE}: {exc}")
     return {}
 
 
@@ -1696,7 +1703,8 @@ def _safe_signing_key_fingerprint(public_key_pem):
         return None
     try:
         return signing_key_fingerprint(public_key_pem)
-    except Exception:
+    except Exception as exc:
+        _warn(f"ignoring unusable signing public key: {exc}")
         return None
 
 
@@ -2458,12 +2466,7 @@ def get_signing_status(client):
         remote_state = "secret_only"
     else:
         remote_state = "absent"
-    local_fingerprint = None
-    if local_key:
-        try:
-            local_fingerprint = signing_key_fingerprint(local_key)
-        except Exception:
-            pass
+    local_fingerprint = _safe_signing_key_fingerprint(local_key)
     return {
         "verification_enabled": enabled,
         "remote_state": remote_state,

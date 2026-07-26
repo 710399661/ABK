@@ -12,6 +12,7 @@ import android.os.Build
 import android.os.Environment
 import android.provider.OpenableColumns
 import android.provider.Settings
+import android.util.Log
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
@@ -92,6 +93,7 @@ import com.abk.kernel.ui.theme.uiSurfaceColor
 import com.abk.kernel.ui.webui.ModuleWebUiActivity
 import com.abk.kernel.utils.DownloadUtils
 import com.abk.kernel.utils.RootUtils
+import com.abk.kernel.utils.openExternalLink
 import com.abk.kernel.viewmodel.MainViewModel
 import com.abk.kernel.viewmodel.RuntimeModuleUpdateInfo
 import com.abk.kernel.viewmodel.RuntimeModuleUpdateTarget
@@ -99,10 +101,13 @@ import com.abk.kernel.viewmodel.findRuntimeModuleUpdateTarget
 import com.abk.kernel.viewmodel.resolveRuntimeModuleChangelog
 import java.io.File
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 private const val RUNTIME_MODULE_DOWNLOAD_RUN_ID = -2_000_000_001L
+private const val RUNTIME_LOG_TAG = "RuntimeScreens"
 private const val RUNTIME_MARKDOWN_URL_TAG = "runtime_markdown_url"
 private val RUNTIME_MARKDOWN_ORDERED_LIST_REGEX = Regex("""^\d+\.\s+""")
 private val RUNTIME_MARKDOWN_BARE_URL_REGEX = Regex("""https?://[^\s)]+""")
@@ -1249,7 +1254,9 @@ private fun RuntimeModuleUpdateConfirmDialog(
             } else {
                 resolveRuntimeModuleChangelog(updateInfo.changelog)
             }
-        } catch (_: Exception) {
+        } catch (error: Exception) {
+            currentCoroutineContext().ensureActive()
+            Log.w(RUNTIME_LOG_TAG, "Failed to resolve module changelog", error)
             context.getString(R.string.runtime_update_changelog_unavailable)
         }
     }
@@ -1302,6 +1309,7 @@ private fun RuntimeModuleUpdateChangelog(
     changelog: String,
     scrollState: ScrollState
 ) {
+    val context = LocalContext.current
     val colorScheme = MaterialTheme.colorScheme
     val uriHandler = LocalUriHandler.current
     val annotatedChangelog = remember(changelog, colorScheme.primary, colorScheme.surfaceVariant) {
@@ -1338,7 +1346,7 @@ private fun RuntimeModuleUpdateChangelog(
                     annotatedChangelog
                         .getStringAnnotations(RUNTIME_MARKDOWN_URL_TAG, offset, offset)
                         .firstOrNull()
-                        ?.let { annotation -> uriHandler.openUri(annotation.item) }
+                        ?.let { annotation -> context.openExternalLink(annotation.item, uriHandler::openUri) }
                 }
             )
         }
