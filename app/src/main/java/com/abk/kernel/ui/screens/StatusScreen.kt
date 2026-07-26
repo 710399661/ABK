@@ -2,8 +2,6 @@
 
 package com.abk.kernel.ui.screens
 
-import android.content.Intent
-import android.net.Uri
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.layout.*
@@ -38,6 +36,7 @@ import com.abk.kernel.ui.components.ShimmerLinearProgress
 import com.abk.kernel.ui.theme.appPageBackgroundColor
 import com.abk.kernel.ui.theme.uiSurfaceColor
 import com.abk.kernel.utils.RootUtils
+import com.abk.kernel.utils.openExternalLink
 import com.abk.kernel.viewmodel.MainViewModel
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
@@ -200,13 +199,7 @@ fun StatusScreen(
                         horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
                         TextButton(
-                            onClick = {
-                                runCatching {
-                                    context.startActivity(
-                                        Intent(Intent.ACTION_VIEW, Uri.parse(run.htmlUrl))
-                                    )
-                                }
-                            },
+                            onClick = { context.openExternalLink(run.htmlUrl) },
                             contentPadding = PaddingValues(0.dp)
                         ) {
                             Icon(Icons.Default.OpenInBrowser, null, modifier = Modifier.size(16.dp))
@@ -303,13 +296,7 @@ fun StatusScreen(
                             horizontalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
                             TextButton(
-                                onClick = {
-                                    runCatching {
-                                        context.startActivity(
-                                            Intent(Intent.ACTION_VIEW, Uri.parse(run.htmlUrl))
-                                        )
-                                    }
-                                },
+                                onClick = { context.openExternalLink(run.htmlUrl) },
                                 contentPadding = PaddingValues(0.dp)
                             ) {
                                 Icon(Icons.Default.OpenInBrowser, null, modifier = Modifier.size(16.dp))

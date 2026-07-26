@@ -1,5 +1,6 @@
 package com.abk.kernel.utils
 
+import android.util.Log
 import androidx.annotation.Keep
 import com.abk.kernel.data.model.ROOT_PROFILE_FLAG_NO_NEW_PRIVS
 import com.abk.kernel.data.model.RootGrantProfile
@@ -11,10 +12,11 @@ object AbkKsuNative {
     const val FLAG_KSU_NO_NEW_PRIVS = ROOT_PROFILE_FLAG_NO_NEW_PRIVS
     private const val NON_ROOT_DEFAULT_PROFILE_KEY = "$"
     private const val NOBODY_UID = 9999
+    private const val TAG = "AbkKsuNative"
 
     private val libraryLoaded = runCatching {
         System.loadLibrary("abkksu")
-    }.isSuccess
+    }.onFailure { Log.w(TAG, "Native library abkksu unavailable", it) }.isSuccess
 
     val loaded: Boolean
         get() = libraryLoaded
@@ -56,7 +58,7 @@ object AbkKsuNative {
     private fun hasNativeBridge(): Boolean {
         if (!libraryLoaded) return false
         if (nativeBridgeAvailable) return true
-        nativeBridgeAvailable = runCatching { hasDriverFd() }.getOrDefault(false)
+        nativeBridgeAvailable = runCatching { hasDriverFd() }.logFailure("hasDriverFd").getOrDefault(false)
         return nativeBridgeAvailable
     }
 
@@ -78,7 +80,7 @@ object AbkKsuNative {
                 isPrBuild = isPrBuild(),
                 superuserCount = if (manager) getSuperuserCount() else 0
             )
-        }.getOrNull()
+        }.logFailure("status").getOrNull()
         if (resolved != null) {
             cachedStatus = resolved
         }
@@ -96,41 +98,45 @@ object AbkKsuNative {
                     ?.filter { it >= 0 }
                     ?.toSet()
                     .orEmpty()
-            }.getOrDefault(emptySet())
+            }.logFailure("grantedUids").getOrDefault(emptySet())
         }
 
     fun readProfile(packageName: String, uid: Int): RootGrantProfile? {
         if (!hasNativeBridge() || packageName.isBlank()) return null
         return runCatching {
             getAppProfile(packageName, uid)?.toRootGrantProfile()
-        }.getOrNull()
+        }.logFailure("readProfile").getOrNull()
     }
 
     fun writeProfile(profile: RootGrantProfile): Boolean {
         if (!hasNativeBridge() || profile.name.isBlank()) return false
         return runCatching {
             setAppProfile(Profile(profile))
-        }.getOrDefault(false)
+        }.logFailure("writeProfile").getOrDefault(false)
     }
 
     fun userName(uid: Int): String =
-        if (!hasNativeBridge()) "" else runCatching { getUserName(uid).orEmpty() }.getOrDefault("")
+        if (!hasNativeBridge()) "" else runCatching { getUserName(uid).orEmpty() }.logFailure("userName").getOrDefault("")
 
     fun controlStatus(): String? {
         if (!hasNativeBridge()) return null
-        return runCatching { getControlStatus()?.trim()?.takeIf { it.startsWith("{") } }.getOrNull()
+        return runCatching { getControlStatus()?.trim()?.takeIf { it.startsWith("{") } }
+            .logFailure("controlStatus")
+            .getOrNull()
     }
 
     fun controlCommand(command: String): Boolean {
         if (!hasNativeBridge()) return false
         val cleanCommand = command.trim()
         if (cleanCommand.isBlank()) return false
-        return runCatching { runControlCommand(cleanCommand) }.getOrDefault(false)
+        return runCatching { runControlCommand(cleanCommand) }
+            .logFailure("controlCommand: $cleanCommand")
+            .getOrDefault(false)
     }
 
     fun feature(featureId: Int): Feature? {
         if (!hasNativeBridge()) return null
-        return runCatching { getFeature(featureId) }.getOrNull()
+        return runCatching { getFeature(featureId) }.logFailure("feature $featureId").getOrNull()
     }
 
     fun encryptGitHubSecret(secretValue: String, publicKeyBase64: String): String {
@@ -151,15 +157,18 @@ object AbkKsuNative {
                     umountModules = umountModules
                 )
             )
-        }.getOrDefault(false)
+        }.logFailure("setDefaultUmountModules").getOrDefault(false)
     }
 
     fun isDefaultUmountModules(): Boolean? {
         if (!hasNativeBridge()) return null
         return runCatching {
             getAppProfile(NON_ROOT_DEFAULT_PROFILE_KEY, NOBODY_UID)?.umountModules
-        }.getOrNull()
+        }.logFailure("isDefaultUmountModules").getOrNull()
     }
+
+    private fun <T> kotlin.Result<T>.logFailure(operation: String): kotlin.Result<T> =
+        onFailure { Log.w(TAG, "Native call failed: $operation", it) }
 
     data class NativeStatus(
         val version: Int,

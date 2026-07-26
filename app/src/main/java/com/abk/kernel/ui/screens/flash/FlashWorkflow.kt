@@ -2,8 +2,6 @@
 
 package com.abk.kernel.ui.screens.flash
 
-import android.content.Intent
-import android.net.Uri
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
@@ -211,6 +209,7 @@ import com.abk.kernel.ui.components.ExpressiveTopBar
 import com.abk.kernel.ui.theme.uiSurfaceColor
 import com.abk.kernel.utils.DownloadUtils
 import com.abk.kernel.utils.RootUtils
+import com.abk.kernel.utils.openExternalLink
 import com.abk.kernel.viewmodel.MainViewModel
 import com.abk.kernel.viewmodel.mergeWorkflowActiveDownloads
 import kotlinx.coroutines.Dispatchers
@@ -402,8 +401,7 @@ internal fun WorkflowRunCard(
 }
 
 internal fun openGithubRun(context: Context, url: String) {
-    if (url.isBlank()) return
-    context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)))
+    context.openExternalLink(url)
 }
 
 internal fun flattenFailedWorkflowSteps(jobs: List<WorkflowJob>): List<WorkflowStep> =

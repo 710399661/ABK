@@ -1,6 +1,7 @@
 package com.abk.kernel.utils
 
 import android.content.Context
+import android.util.Log
 import androidx.annotation.VisibleForTesting
 import com.abk.kernel.BuildConfig
 import com.abk.kernel.data.model.WorkflowStepI18nBundle
@@ -11,6 +12,8 @@ import com.google.gson.annotations.SerializedName
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -23,6 +26,7 @@ import java.util.concurrent.TimeUnit
 
 object WorkflowStepI18n {
 
+    private const val TAG = "WorkflowStepI18n"
     private const val ASSET_DIR = "i18n"
     private const val CACHE_DIR = "i18n"
     private const val FALLBACK_LANG = LocaleHelper.LANG_EN
@@ -163,7 +167,9 @@ object WorkflowStepI18n {
                 response.body?.string()
             } 
         }    
-        catch (_: Exception) {
+        catch (error: Exception) {
+            currentCoroutineContext().ensureActive()
+            Log.w(TAG, "Workflow step i18n fetch failed: $url", error)
             null
         }
     }
