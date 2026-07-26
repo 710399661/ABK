@@ -324,29 +324,20 @@ internal fun ArtifactSourceCard(
                             }
                         }
                     } else {
-                        Button(
-                            onClick = onDownload,
-                            modifier = Modifier.fillMaxWidth().height(42.dp)
-                        ) {
-                            Icon(Icons.Default.Download, null, modifier = Modifier.size(16.dp))
-                            Spacer(Modifier.width(6.dp))
-                            Text(stringResource(R.string.flash_download))
-                        }
-                    }
-                }
-                else -> {
-                    downloadedFiles.forEachIndexed { index, file ->
-                        if (index > 0) HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
-                        DownloadedOutputRow(
-                            artifact = file,
-                            onCopyPath = { onCopyPath(file) },
-                            onInstall = { onInstall(file) },
-                            onFlash = { onFlash(file) },
-                            onDelete = { onDelete(file) },
-                            allowRootActions = allowRootActions
+                        ArtifactDownloadButton(
+                            label = stringResource(R.string.flash_download),
+                            onClick = onDownload
                         )
                     }
                 }
+                else -> DownloadedOutputList(
+                    files = downloadedFiles,
+                    onCopyPath = onCopyPath,
+                    onInstall = onInstall,
+                    onFlash = onFlash,
+                    onDelete = onDelete,
+                    allowRootActions = allowRootActions
+                )
             }
         }
     }
@@ -383,6 +374,42 @@ internal fun LocalOnlyArtifactCard(
                 allowRootActions = allowRootActions
             )
         }
+    }
+}
+
+/** Full-width primary download button shared by remote artifact and prebuilt cards. */
+@Composable
+internal fun ArtifactDownloadButton(label: String, onClick: () -> Unit) {
+    Button(
+        onClick = onClick,
+        modifier = Modifier.fillMaxWidth().height(42.dp)
+    ) {
+        Icon(Icons.Default.Download, null, modifier = Modifier.size(16.dp))
+        Spacer(Modifier.width(6.dp))
+        Text(label)
+    }
+}
+
+/** Divider-separated rows of already downloaded files for one artifact/release. */
+@Composable
+internal fun DownloadedOutputList(
+    files: List<DownloadedArtifact>,
+    onCopyPath: (DownloadedArtifact) -> Unit,
+    onInstall: (DownloadedArtifact) -> Unit,
+    onFlash: (DownloadedArtifact) -> Unit,
+    onDelete: (DownloadedArtifact) -> Unit,
+    allowRootActions: Boolean
+) {
+    files.forEachIndexed { index, file ->
+        if (index > 0) HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+        DownloadedOutputRow(
+            artifact = file,
+            onCopyPath = { onCopyPath(file) },
+            onInstall = { onInstall(file) },
+            onFlash = { onFlash(file) },
+            onDelete = { onDelete(file) },
+            allowRootActions = allowRootActions
+        )
     }
 }
 

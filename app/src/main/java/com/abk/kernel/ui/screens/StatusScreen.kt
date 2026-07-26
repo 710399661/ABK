@@ -2,8 +2,6 @@
 
 package com.abk.kernel.ui.screens
 
-import android.content.Intent
-import android.net.Uri
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.layout.*
@@ -38,6 +36,7 @@ import com.abk.kernel.ui.components.ShimmerLinearProgress
 import com.abk.kernel.ui.theme.appPageBackgroundColor
 import com.abk.kernel.ui.theme.uiSurfaceColor
 import com.abk.kernel.utils.RootUtils
+import com.abk.kernel.utils.openExternalUrl
 import com.abk.kernel.viewmodel.MainViewModel
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
@@ -194,47 +193,12 @@ fun StatusScreen(
                 val showSingleRunAction = state.kernelActiveBuildRuns.size <= 1
                 state.kernelCurrentRun?.takeIf { showSingleRunAction }?.let { run ->
                     Spacer(Modifier.height(4.dp))
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        TextButton(
-                            onClick = {
-                                runCatching {
-                                    context.startActivity(
-                                        Intent(Intent.ACTION_VIEW, Uri.parse(run.htmlUrl))
-                                    )
-                                }
-                            },
-                            contentPadding = PaddingValues(0.dp)
-                        ) {
-                            Icon(Icons.Default.OpenInBrowser, null, modifier = Modifier.size(16.dp))
-                            Spacer(Modifier.width(4.dp))
-                            Text(stringResource(R.string.status_view_details, run.runNumber), style = MaterialTheme.typography.labelMedium)
-                        }
-                        if (run.isActiveStatusRun()) {
-                            TextButton(
-                                onClick = { vm.cancelWorkflowRun(run.id) },
-                                enabled = run.id !in state.cancellingWorkflowRunIds,
-                                colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error)
-                            ) {
-                                if (run.id in state.cancellingWorkflowRunIds) {
-                                    LoadingIndicator(Modifier.size(16.dp))
-                                } else {
-                                    Icon(Icons.Default.Cancel, null, modifier = Modifier.size(16.dp))
-                                }
-                                Spacer(Modifier.width(4.dp))
-                                Text(
-                                    if (run.id in state.cancellingWorkflowRunIds) {
-                                        stringResource(R.string.status_cancelling)
-                                    } else {
-                                        stringResource(R.string.status_cancel)
-                                    }
-                                )
-                            }
-                        }
-                    }
+                    WorkflowRunActionsRow(
+                        run = run,
+                        cancelling = run.id in state.cancellingWorkflowRunIds,
+                        onOpen = { context.openExternalUrl(run.htmlUrl) },
+                        onCancel = { vm.cancelWorkflowRun(run.id) }
+                    )
                 }
                 if (state.kernelActiveBuildRuns.size > 1) {
                     Text(
@@ -297,50 +261,12 @@ fun StatusScreen(
                     val showSingleManagerAction = state.managerActiveBuildRuns.size <= 1
                     state.managerCurrentRun?.takeIf { showSingleManagerAction }?.let { run ->
                         Spacer(Modifier.height(4.dp))
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(8.dp)
-                        ) {
-                            TextButton(
-                                onClick = {
-                                    runCatching {
-                                        context.startActivity(
-                                            Intent(Intent.ACTION_VIEW, Uri.parse(run.htmlUrl))
-                                        )
-                                    }
-                                },
-                                contentPadding = PaddingValues(0.dp)
-                            ) {
-                                Icon(Icons.Default.OpenInBrowser, null, modifier = Modifier.size(16.dp))
-                                Spacer(Modifier.width(4.dp))
-                                Text(stringResource(R.string.status_view_details, run.runNumber), style = MaterialTheme.typography.labelMedium)
-                            }
-                            if (run.isActiveStatusRun()) {
-                                TextButton(
-                                    onClick = { vm.cancelWorkflowRun(run.id) },
-                                    enabled = run.id !in state.cancellingWorkflowRunIds,
-                                    colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error)
-                                ) {
-                                    if (run.id in state.cancellingWorkflowRunIds) {
-                                        LoadingIndicator(
-                                            modifier = Modifier.size(16.dp),
-                                            color = MaterialTheme.colorScheme.error
-                                        )
-                                    } else {
-                                        Icon(Icons.Default.Cancel, null, modifier = Modifier.size(16.dp))
-                                    }
-                                    Spacer(Modifier.width(4.dp))
-                                    Text(
-                                        if (run.id in state.cancellingWorkflowRunIds) {
-                                            stringResource(R.string.status_cancelling)
-                                        } else {
-                                            stringResource(R.string.status_cancel)
-                                        }
-                                    )
-                                }
-                            }
-                        }
+                        WorkflowRunActionsRow(
+                            run = run,
+                            cancelling = run.id in state.cancellingWorkflowRunIds,
+                            onOpen = { context.openExternalUrl(run.htmlUrl) },
+                            onCancel = { vm.cancelWorkflowRun(run.id) }
+                        )
                     }
                     if (state.managerActiveBuildRuns.size > 1) {
                         Text(
@@ -570,6 +496,54 @@ private fun StatusRow(icon: androidx.compose.ui.graphics.vector.ImageVector, tex
             modifier = Modifier.size(20.dp)
         )
         Text(text, style = MaterialTheme.typography.bodyMedium)
+    }
+}
+
+/** "View details" / "Cancel" actions shown under a single in-flight run. */
+@Composable
+private fun WorkflowRunActionsRow(
+    run: WorkflowRun,
+    cancelling: Boolean,
+    onOpen: () -> Unit,
+    onCancel: () -> Unit
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        TextButton(onClick = onOpen, contentPadding = PaddingValues(0.dp)) {
+            Icon(Icons.Default.OpenInBrowser, null, modifier = Modifier.size(16.dp))
+            Spacer(Modifier.width(4.dp))
+            Text(
+                stringResource(R.string.status_view_details, run.runNumber),
+                style = MaterialTheme.typography.labelMedium
+            )
+        }
+        if (run.isActiveStatusRun()) {
+            TextButton(
+                onClick = onCancel,
+                enabled = !cancelling,
+                colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error)
+            ) {
+                if (cancelling) {
+                    LoadingIndicator(
+                        modifier = Modifier.size(16.dp),
+                        color = MaterialTheme.colorScheme.error
+                    )
+                } else {
+                    Icon(Icons.Default.Cancel, null, modifier = Modifier.size(16.dp))
+                }
+                Spacer(Modifier.width(4.dp))
+                Text(
+                    if (cancelling) {
+                        stringResource(R.string.status_cancelling)
+                    } else {
+                        stringResource(R.string.status_cancel)
+                    }
+                )
+            }
+        }
     }
 }
 
