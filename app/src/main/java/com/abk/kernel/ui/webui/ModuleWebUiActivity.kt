@@ -3,7 +3,10 @@ package com.abk.kernel.ui.webui
 import android.annotation.SuppressLint
 import android.app.Activity
 import android.content.Context
+import android.content.Intent
+import android.graphics.Bitmap
 import android.graphics.Color
+import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import android.view.ViewGroup
@@ -32,6 +35,7 @@ import kotlin.concurrent.thread
 class ModuleWebUiActivity : Activity() {
 
     private lateinit var webView: WebView
+    private val originGuard = OriginGuard()
 
     override fun attachBaseContext(newBase: Context) {
         super.attachBaseContext(LocaleHelper.applyLocale(newBase))
@@ -83,8 +87,11 @@ class ModuleWebUiActivity : Activity() {
             settings.domStorageEnabled = true
             settings.allowFileAccess = false
             webChromeClient = WebChromeClient()
-            webViewClient = ModuleWebViewClient(moduleId)
-            addJavascriptInterface(ModuleWebBridge(this@ModuleWebUiActivity, this, moduleId, moduleDir), "ksu")
+            webViewClient = ModuleWebViewClient(this@ModuleWebUiActivity, moduleId, originGuard)
+            addJavascriptInterface(
+                ModuleWebBridge(this@ModuleWebUiActivity, this, moduleId, moduleDir, originGuard),
+                "ksu"
+            )
         }
         setContentView(webView)
         loadModuleWebPage()
@@ -137,12 +144,22 @@ class ModuleWebUiActivity : Activity() {
         }
     }
 
+    /** Tracks whether the currently loaded document still belongs to the module webroot origin. */
+    private class OriginGuard {
+        @Volatile
+        var isLocalOrigin: Boolean = true
+    }
+
     private class ModuleWebViewClient(
-        private val moduleId: String
+        private val activity: Activity,
+        private val moduleId: String,
+        private val originGuard: OriginGuard
     ) : WebViewClient() {
         override fun shouldInterceptRequest(view: WebView, request: WebResourceRequest): WebResourceResponse? {
-            val url = request.url ?: return null
-            if (url.host != WEB_HOST) return null
+            val url = request.url ?: return blockedResponse()
+            if (url.host != WEB_HOST) {
+                return if (url.scheme in NETWORK_SCHEMES) blockedResponse() else null
+            }
             val relativePath = url.path?.trimStart('/').orEmpty().ifBlank { "index.html" }
             val bytes = RootUtils.readModuleWebResource(moduleId, relativePath) ?: return null
             return WebResourceResponse(
@@ -150,23 +167,62 @@ class ModuleWebUiActivity : Activity() {
                 "utf-8",
                 200,
                 "OK",
-                mapOf("Access-Control-Allow-Origin" to "*"),
+                mapOf("Access-Control-Allow-Origin" to WEB_ORIGIN_HEADER),
                 ByteArrayInputStream(bytes)
             )
         }
+
+        override fun shouldOverrideUrlLoading(view: WebView, request: WebResourceRequest): Boolean {
+            val url = request.url ?: return true
+            if (url.host == WEB_HOST) return false
+            openExternally(url)
+            return true
+        }
+
+        @Deprecated("Kept for API levels below 24")
+        override fun shouldOverrideUrlLoading(view: WebView, url: String?): Boolean {
+            val parsed = runCatching { Uri.parse(url.orEmpty()) }.getOrNull() ?: return true
+            if (parsed.host == WEB_HOST) return false
+            openExternally(parsed)
+            return true
+        }
+
+        override fun onPageStarted(view: WebView, url: String?, favicon: Bitmap?) {
+            originGuard.isLocalOrigin = runCatching { Uri.parse(url.orEmpty()).host }.getOrNull() == WEB_HOST
+            super.onPageStarted(view, url, favicon)
+        }
+
+        private fun openExternally(url: Uri) {
+            if (url.scheme != "http" && url.scheme != "https") return
+            runCatching {
+                activity.startActivity(Intent(Intent.ACTION_VIEW, url).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+            }
+        }
+
+        private fun blockedResponse(): WebResourceResponse = WebResourceResponse(
+            "text/plain",
+            "utf-8",
+            403,
+            "Forbidden",
+            emptyMap(),
+            ByteArrayInputStream(ByteArray(0))
+        )
     }
 
     private class ModuleWebBridge(
         private val activity: Activity,
         private val webView: WebView,
         private val moduleId: String,
-        private val moduleDir: String
+        private val moduleDir: String,
+        private val originGuard: OriginGuard
     ) {
         @JavascriptInterface
-        fun exec(command: String): String =
-            RootUtils.execRootCommandForWebUi(command, cwd = moduleDir)
+        fun exec(command: String): String {
+            if (!originGuard.isLocalOrigin) return ""
+            return RootUtils.execRootCommandForWebUi(command, cwd = moduleDir)
                 .output
                 .joinToString("\n")
+        }
 
         @JavascriptInterface
         fun exec(command: String, callbackFunc: String) {
@@ -175,6 +231,7 @@ class ModuleWebUiActivity : Activity() {
 
         @JavascriptInterface
         fun exec(command: String, options: String?, callbackFunc: String) {
+            if (!originGuard.isLocalOrigin) return
             thread(name = "abk-webui-exec") {
                 val finalCommand = commandWithOptions(command, options)
                 val result = RootUtils.execRootCommandForWebUi(finalCommand, cwd = moduleDir)
@@ -191,6 +248,7 @@ class ModuleWebUiActivity : Activity() {
 
         @JavascriptInterface
         fun spawn(command: String, args: String, options: String?, callbackFunc: String) {
+            if (!originGuard.isLocalOrigin) return
             thread(name = "abk-webui-spawn") {
                 val argString = runCatching {
                     val array = JSONArray(args)
@@ -229,7 +287,8 @@ class ModuleWebUiActivity : Activity() {
         }
 
         @JavascriptInterface
-        fun moduleInfo(): String = RootUtils.moduleInfoJson(moduleId)
+        fun moduleInfo(): String =
+            if (originGuard.isLocalOrigin) RootUtils.moduleInfoJson(moduleId) else "{}"
 
         @JavascriptInterface
         fun exit() {
@@ -263,7 +322,9 @@ class ModuleWebUiActivity : Activity() {
         const val EXTRA_MODULE_ID = "module_id"
         const val EXTRA_MODULE_NAME = "module_name"
         private const val WEB_HOST = "abk-module.local"
-        private const val WEB_ORIGIN = "https://$WEB_HOST/index.html"
+        private const val WEB_ORIGIN_HEADER = "https://$WEB_HOST"
+        private const val WEB_ORIGIN = "$WEB_ORIGIN_HEADER/index.html"
+        private val NETWORK_SCHEMES = setOf("http", "https", "ws", "wss")
 
         private fun mimeType(path: String): String = when (path.substringAfterLast('.', "").lowercase()) {
             "html", "htm" -> "text/html"

@@ -119,8 +119,8 @@ class AbkExtensionHostProvider : ContentProvider() {
         if (callerPackage == context.packageName) return true
         return abkLoadManagedExtensions(context).any { extension ->
             extension.extensionId == extensionId &&
-                extension.companionPackage.isNotBlank() &&
-                extension.companionPackage == callerPackage
+                extension.declaredCompanionPackage.isNotBlank() &&
+                extension.declaredCompanionPackage == callerPackage
         }
     }
 
