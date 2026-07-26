@@ -29,6 +29,16 @@ function dismissAnnounceToday() {
 
 // ---- 简易 Markdown 渲染 ----
 
+// 仅允许 http/https/mailto 与站内相对链接，并转义属性分隔符
+function sanitizeUrl(url) {
+  var raw = String(url == null ? '' : url).trim();
+  if (!raw) return '';
+  var scheme = raw.match(/^([a-zA-Z][a-zA-Z0-9+.-]*):/);
+  if (scheme && ['http', 'https', 'mailto'].indexOf(scheme[1].toLowerCase()) === -1) return '';
+  if (!scheme && /^\s*\/\//.test(raw)) return '';
+  return raw.replace(/["'<>]/g, encodeURIComponent);
+}
+
 // 渲染行内 Markdown（代码、链接、加粗、斜体）
 function renderInlineMarkdown(text) {
   var html = esc(text == null ? '' : String(text));
@@ -39,8 +49,10 @@ function renderInlineMarkdown(text) {
     return '\u0000CODE' + (codeTokens.length - 1) + '\u0000';
   });
 
-  html = html.replace(/\[([^\]\n]+)\]\(([^)\s]+)\)/g, function (_, label, url) {
-    return '<a href="' + url + '" target="_blank" rel="noopener noreferrer">' + label + '</a>';
+  html = html.replace(/\[([^\]\n]+)\]\(([^)\s]+)\)/g, function (match, label, url) {
+    var safeUrl = sanitizeUrl(url);
+    if (!safeUrl) return match;
+    return '<a href="' + safeUrl + '" target="_blank" rel="noopener noreferrer">' + label + '</a>';
   });
   html = html.replace(/\*\*([^*\n]+)\*\*/g, '<strong>$1</strong>');
   html = html.replace(/\*([^*\n]+)\*/g, '<em>$1</em>');

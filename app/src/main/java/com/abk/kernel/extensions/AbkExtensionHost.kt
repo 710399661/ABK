@@ -48,6 +48,12 @@ data class AbkManagedExtension(
     val name: String,
     val description: String,
     val companionPackage: String,
+    /**
+     * Companion package as declared by the runtime module itself, without falling back to
+     * packages discovered from installed apps. Only this value may authorize cross-package
+     * access to [AbkExtensionHostProvider].
+     */
+    val declaredCompanionPackage: String = "",
     val companionDisplayName: String,
     val companionAssetName: String,
     val companionDownloadUrl: String,
@@ -264,6 +270,7 @@ private fun toManagedExtension(
         name = module.name.ifBlank { module.extensionId },
         description = module.description,
         companionPackage = module.companionPackage.ifBlank { discoveredApp?.packageName.orEmpty() },
+        declaredCompanionPackage = module.companionPackage.trim(),
         companionDisplayName = module.companionDisplayName.ifBlank { discoveredApp?.displayName.orEmpty() },
         companionAssetName = module.companionAssetName,
         companionDownloadUrl = module.companionDownloadUrl,
