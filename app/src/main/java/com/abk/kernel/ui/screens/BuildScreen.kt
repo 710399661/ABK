@@ -2,8 +2,6 @@
 
 package com.abk.kernel.ui.screens
 
-import android.content.ClipData
-import android.content.ClipboardManager
 import android.content.Context
 import android.net.Uri
 import android.widget.Toast
@@ -96,6 +94,7 @@ import com.abk.kernel.ui.components.ExpressiveSwitchItem
 import com.abk.kernel.ui.components.ExpressiveTopBar
 import com.abk.kernel.ui.theme.appPageBackgroundColor
 import com.abk.kernel.ui.theme.uiSurfaceColor
+import com.abk.kernel.utils.copyToClipboard
 import com.abk.kernel.viewmodel.BuildPlanImportPreview
 import com.abk.kernel.viewmodel.BuildPlanShareScope
 import com.abk.kernel.viewmodel.CustomKernelOptionSummary
@@ -622,8 +621,7 @@ fun BuildScreen(
             plan = plan,
             onDismiss = { sharePlanTarget = null },
             onShare = { scope ->
-                copyTextToClipboard(
-                    context = context,
+                context.copyToClipboard(
                     label = context.getString(R.string.build_plan_clipboard_label),
                     text = vm.shareBuildPlanCode(plan.config, plan.name, scope)
                 )
@@ -3024,11 +3022,6 @@ private fun BuildTargetSelector(
 private fun buildTargetLabel(target: String): String = when (target) {
     BUILD_TARGET_ONEPLUS -> stringResource(R.string.build_target_oneplus)
     else -> stringResource(R.string.build_target_gki)
-}
-
-private fun copyTextToClipboard(context: Context, label: String, text: String) {
-    val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-    clipboard.setPrimaryClip(ClipData.newPlainText(label, text))
 }
 
 @Composable

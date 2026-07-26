@@ -525,29 +525,18 @@ internal fun PrebuiltGkiAssetCard(
                         )
                     }
                 }
-                downloadedFiles.isEmpty() -> {
-                    Button(
-                        onClick = onDownload,
-                        modifier = Modifier.fillMaxWidth().height(42.dp)
-                    ) {
-                        Icon(Icons.Default.Download, null, modifier = Modifier.size(16.dp))
-                        Spacer(Modifier.width(6.dp))
-                        Text(stringResource(R.string.flash_download_prebuilt_gki))
-                    }
-                }
-                else -> {
-                    downloadedFiles.forEachIndexed { index, file ->
-                        if (index > 0) HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
-                        DownloadedOutputRow(
-                            artifact = file,
-                            onCopyPath = { onCopyPath(file) },
-                            onInstall = { onInstall(file) },
-                            onFlash = { onFlash(file) },
-                            onDelete = { onDelete(file) },
-                            allowRootActions = allowRootActions
-                        )
-                    }
-                }
+                downloadedFiles.isEmpty() -> ArtifactDownloadButton(
+                    label = stringResource(R.string.flash_download_prebuilt_gki),
+                    onClick = onDownload
+                )
+                else -> DownloadedOutputList(
+                    files = downloadedFiles,
+                    onCopyPath = onCopyPath,
+                    onInstall = onInstall,
+                    onFlash = onFlash,
+                    onDelete = onDelete,
+                    allowRootActions = allowRootActions
+                )
             }
         }
     }

@@ -59,6 +59,7 @@ import com.abk.kernel.extensions.AbkExtensionManagerScreen
 import com.abk.kernel.utils.DownloadDirectoryUtils
 import com.abk.kernel.utils.DownloadUtils
 import com.abk.kernel.utils.LocaleHelper
+import com.abk.kernel.utils.openExternalUrl
 import com.abk.kernel.ui.components.AbkScreenHorizontalPadding
 import com.abk.kernel.ui.components.AbkSegmentedButtonOption
 import com.abk.kernel.ui.components.AbkSingleChoiceSegmentedButtonRow
@@ -2491,11 +2492,7 @@ private fun webDependencyNotices(): List<OpenSourceNotice> = listOf(
 private fun sourceRepoUrl(): String =
     "https://github.com/${BuildConfig.SOURCE_REPO_OWNER}/${BuildConfig.SOURCE_REPO_NAME}"
 
-private fun openUrl(context: android.content.Context, url: String) {
-    runCatching {
-        context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)))
-    }
-}
+private fun openUrl(context: android.content.Context, url: String) = context.openExternalUrl(url)
 
 private fun launchAppUpdateInstaller(context: android.content.Context, apkPath: String) {
     val apkFile = File(apkPath)

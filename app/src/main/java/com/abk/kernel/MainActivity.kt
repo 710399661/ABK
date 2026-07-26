@@ -84,7 +84,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.zIndex
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
-import com.abk.kernel.ui.components.AppBackgroundHost
+import com.abk.kernel.ui.components.AbkAppThemeHost
 import com.abk.kernel.ui.components.AbkSnackbarHost
 import com.abk.kernel.ui.components.animateBottomNavForChildPage
 import com.abk.kernel.ui.components.showAbkSnackbar
@@ -98,7 +98,6 @@ import com.abk.kernel.ui.screens.RootAuthorizationScreen
 import com.abk.kernel.ui.screens.RuntimeHomeScreen
 import com.abk.kernel.ui.screens.SettingsScreen
 import com.abk.kernel.ui.screens.StatusScreen
-import com.abk.kernel.ui.theme.AbkTheme
 import com.abk.kernel.ui.theme.LocalUiSurfaceAlpha
 import com.abk.kernel.ui.theme.appPageBackgroundColor
 import com.abk.kernel.ui.theme.uiSurfaceColor
@@ -152,56 +151,53 @@ class MainActivity : ComponentActivity() {
                 }
             }
 
-            AbkTheme(
+            AbkAppThemeHost(
                 themeMode = state.themeMode,
                 dynamicColorEnabled = state.dynamicColorEnabled,
                 customThemeColorArgb = state.customThemeColorArgb,
-                customAccentColorArgb = state.customAccentColorArgb
+                customAccentColorArgb = state.customAccentColorArgb,
+                backgroundUri = state.customBackgroundUri,
+                backgroundEnabled = state.backgroundImageEnabled,
+                uiSurfaceAlpha = state.uiSurfaceAlpha
             ) {
-                AppBackgroundHost(
-                    backgroundUri = state.customBackgroundUri,
-                    backgroundEnabled = state.backgroundImageEnabled,
-                    uiSurfaceAlpha = state.uiSurfaceAlpha
-                ) {
-                    when {
-                        !state.termsLoaded -> Surface(
-                            modifier = Modifier.fillMaxSize(),
-                            color = MaterialTheme.colorScheme.surface
-                        ) {}
-                        !state.termsAccepted -> TermsAgreementDialog(
-                            onAccept = vm::acceptTerms,
-                            onDecline = { finishAffinity() }
+                when {
+                    !state.termsLoaded -> Surface(
+                        modifier = Modifier.fillMaxSize(),
+                        color = MaterialTheme.colorScheme.surface
+                    ) {}
+                    !state.termsAccepted -> TermsAgreementDialog(
+                        onAccept = vm::acceptTerms,
+                        onDecline = { finishAffinity() }
+                    )
+                    else -> Box(modifier = Modifier.fillMaxSize()) {
+                        AbkMainScaffold(
+                            vm = vm,
+                            pendingModuleInstallUri = pendingModuleInstallUri,
+                            onModuleInstallUriConsumed = { pendingModuleInstallUri = null }
                         )
-                        else -> Box(modifier = Modifier.fillMaxSize()) {
-                            AbkMainScaffold(
-                                vm = vm,
-                                pendingModuleInstallUri = pendingModuleInstallUri,
-                                onModuleInstallUriConsumed = { pendingModuleInstallUri = null }
+                        val rootGrantRecoveryNotice = state.rootGrantRecoveryNotice
+                        if (rootGrantRecoveryNotice != null && !state.showOobe) {
+                            RootGrantRecoveryDialog(
+                                title = rootGrantRecoveryNotice.title,
+                                message = rootGrantRecoveryNotice.message,
+                                onDismiss = vm::dismissRootGrantRecoveryNotice
                             )
-                            val rootGrantRecoveryNotice = state.rootGrantRecoveryNotice
-                            if (rootGrantRecoveryNotice != null && !state.showOobe) {
-                                RootGrantRecoveryDialog(
-                                    title = rootGrantRecoveryNotice.title,
-                                    message = rootGrantRecoveryNotice.message,
-                                    onDismiss = vm::dismissRootGrantRecoveryNotice
-                                )
-                            } else if (state.showSyncPrompt && !state.showOobe) {
-                                SyncPromptDialog(
-                                    behindBy = state.behindBy,
-                                    onSync = vm::syncFork,
-                                    onDismiss = vm::dismissSyncPrompt
-                                )
-                            }
-                            if (state.showOobe) {
-                                CompositionLocalProvider(LocalUiSurfaceAlpha provides 1f) {
-                                    Box(
-                                        modifier = Modifier
-                                            .fillMaxSize()
-                                            .background(MaterialTheme.colorScheme.surface)
-                                            .zIndex(4f)
-                                    ) {
-                                        OobeScreen(vm)
-                                    }
+                        } else if (state.showSyncPrompt && !state.showOobe) {
+                            SyncPromptDialog(
+                                behindBy = state.behindBy,
+                                onSync = vm::syncFork,
+                                onDismiss = vm::dismissSyncPrompt
+                            )
+                        }
+                        if (state.showOobe) {
+                            CompositionLocalProvider(LocalUiSurfaceAlpha provides 1f) {
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxSize()
+                                        .background(MaterialTheme.colorScheme.surface)
+                                        .zIndex(4f)
+                                ) {
+                                    OobeScreen(vm)
                                 }
                             }
                         }
@@ -598,22 +594,8 @@ private fun AbkMainScaffold(
                                 unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
                                 unselectedTextColor = MaterialTheme.colorScheme.onSurfaceVariant
                             ),
-                            icon = {
-                                Icon(
-                                    imageVector = tab.icon(rootGranted = state.rootGranted),
-                                    contentDescription = tab.displayLabel(state.rootGranted)
-                                )
-                            },
-                            label = {
-                                Text(
-                                    text = tab.displayLabel(state.rootGranted),
-                                    maxLines = 2,
-                                    softWrap = true,
-                                    overflow = TextOverflow.Ellipsis,
-                                    textAlign = TextAlign.Center,
-                                    style = MaterialTheme.typography.labelSmall
-                                )
-                            }
+                            icon = { AbkTabIcon(tab, state.rootGranted) },
+                            label = { AbkTabLabel(tab, state.rootGranted) }
                         )
                     }
                 }
@@ -646,22 +628,8 @@ private fun AbkMainScaffold(
                             unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
                             unselectedTextColor = MaterialTheme.colorScheme.onSurfaceVariant
                         ),
-                        icon = {
-                            Icon(
-                                imageVector = tab.icon(rootGranted = state.rootGranted),
-                                contentDescription = tab.displayLabel(state.rootGranted)
-                            )
-                        },
-                        label = {
-                            Text(
-                                text = tab.displayLabel(state.rootGranted),
-                                maxLines = 2,
-                                softWrap = true,
-                                overflow = TextOverflow.Ellipsis,
-                                textAlign = TextAlign.Center,
-                                style = MaterialTheme.typography.labelSmall
-                            )
-                        }
+                        icon = { AbkTabIcon(tab, state.rootGranted) },
+                        label = { AbkTabLabel(tab, state.rootGranted) }
                     )
                 }
             }
@@ -784,6 +752,26 @@ private fun AbkTab.icon(rootGranted: Boolean) = when (this) {
     AbkTab.InstalledModules -> Icons.Default.Extension
     AbkTab.RootAuth -> Icons.Default.AdminPanelSettings
     AbkTab.Settings -> Icons.Default.Settings
+}
+
+@Composable
+private fun AbkTabIcon(tab: AbkTab, rootGranted: Boolean) {
+    Icon(
+        imageVector = tab.icon(rootGranted = rootGranted),
+        contentDescription = tab.displayLabel(rootGranted)
+    )
+}
+
+@Composable
+private fun AbkTabLabel(tab: AbkTab, rootGranted: Boolean) {
+    Text(
+        text = tab.displayLabel(rootGranted),
+        maxLines = 2,
+        softWrap = true,
+        overflow = TextOverflow.Ellipsis,
+        textAlign = TextAlign.Center,
+        style = MaterialTheme.typography.labelSmall
+    )
 }
 
 private fun extractModuleInstallUri(intent: Intent?): Uri? {

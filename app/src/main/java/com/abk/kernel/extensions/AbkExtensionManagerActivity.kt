@@ -38,7 +38,6 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -57,13 +56,12 @@ import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import com.abk.kernel.R
 import com.abk.kernel.data.repository.PreferencesRepository
+import com.abk.kernel.ui.components.AbkAppThemeHost
 import com.abk.kernel.ui.components.AbkCenteredLoadingTransition
 import com.abk.kernel.ui.components.AbkScreenHorizontalPadding
-import com.abk.kernel.ui.components.AppBackgroundHost
 import com.abk.kernel.ui.components.ExpressiveSectionCard
 import com.abk.kernel.ui.components.ExpressiveStatusChip
 import com.abk.kernel.ui.components.ExpressiveTopBar
-import com.abk.kernel.ui.theme.AbkTheme
 import com.abk.kernel.utils.DownloadUtils
 import com.abk.kernel.utils.LocaleHelper
 import com.abk.kernel.utils.RootUtils
@@ -84,33 +82,14 @@ class AbkExtensionManagerActivity : ComponentActivity() {
 
         setContent {
             val prefs = remember { PreferencesRepository(applicationContext) }
-            val themeMode by prefs.themeMode.collectAsState(initial = "dark")
-            val dynamicColorEnabled by prefs.dynamicColorEnabled.collectAsState(initial = true)
-            val customThemeColorArgb by prefs.customThemeColorArgb.collectAsState(initial = null)
-            val customAccentColorArgb by prefs.customAccentColorArgb.collectAsState(initial = null)
-            val customBackgroundUri by prefs.customBackgroundUri.collectAsState(initial = null)
-            val backgroundImageEnabled by prefs.backgroundImageEnabled.collectAsState(initial = false)
-            val uiSurfaceAlpha by prefs.uiSurfaceAlpha.collectAsState(initial = 1f)
-
-            AbkTheme(
-                themeMode = themeMode,
-                dynamicColorEnabled = dynamicColorEnabled,
-                customThemeColorArgb = customThemeColorArgb,
-                customAccentColorArgb = customAccentColorArgb
-            ) {
-                AppBackgroundHost(
-                    backgroundUri = customBackgroundUri,
-                    backgroundEnabled = backgroundImageEnabled,
-                    uiSurfaceAlpha = uiSurfaceAlpha
-                ) {
-                    AbkExtensionManagerScreen(
-                        focusExtensionId = focusExtensionId,
-                        bootstrapMode = bootstrapMode,
+            AbkAppThemeHost(prefs) {
+                AbkExtensionManagerScreen(
+                    focusExtensionId = focusExtensionId,
+                    bootstrapMode = bootstrapMode,
                     onBack = ::finish,
                     onExternalFlowLaunched = ::finish,
                 )
             }
-        }
         }
     }
 }

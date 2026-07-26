@@ -3,14 +3,13 @@
 读取现有 JSON 数据，仅抓取缺失的月份，同时更新 LTS 版本。
 """
 
-import json
-import os
 import time
 
 from gki_fetch import (
-    TARGETS, DATA_DIR,
+    TARGETS,
     make_date_range, get_end_date,
-    fetch_makefile, fetch_lts, parse_version, json_path,
+    fetch_date_version, json_path,
+    print_branch_prefix, read_json, refresh_lts, write_json,
 )
 
 
@@ -23,18 +22,13 @@ def update_target(android_ver: str, kernel_ver: str,
     changed = False
 
     # 读取现有数据
-    if os.path.exists(path):
-        with open(path, "r", encoding="utf-8") as f:
-            data = json.load(f)
-        entries = data.get("entries", [])
-    else:
-        data = {
-            "android_version": android_ver,
-            "kernel_version": kernel_ver,
-            "lts": None,
-            "entries": [],
-        }
-        entries = []
+    data = read_json(path) or {
+        "android_version": android_ver,
+        "kernel_version": kernel_ver,
+        "lts": None,
+        "entries": [],
+    }
+    entries = data.get("entries", [])
 
     # 确定需要抓取的日期范围
     # 从 date_start 开始扫描，过滤掉已有日期，可自动填补之前遗漏的月份
@@ -47,21 +41,11 @@ def update_target(android_ver: str, kernel_ver: str,
     else:
         print(f"  Fetching {len(new_dates)} new month(s): {new_dates[0]} ~ {new_dates[-1]}")
         for date in new_dates:
-            label = f"{android_ver}-{kernel_ver}-{date}"
-            print(f"    [{label}] ", end="", flush=True)
-
-            text = fetch_makefile(android_ver, kernel_ver, date, dep_cutoff)
-            if text is None:
-                print("not found, skip")
+            print_branch_prefix(android_ver, kernel_ver, date, indent="    ")
+            detail = fetch_date_version(android_ver, kernel_ver, date, dep_cutoff)
+            if detail is None:
                 continue
 
-            ver = parse_version(text)
-            if ver is None:
-                print("parse failed, skip")
-                continue
-
-            version, patchlevel, sublevel = ver
-            detail = f"{version}.{patchlevel}.{sublevel}"
             entries.append({"date": date, "kernel": detail})
             changed = True
             print(f"-> {detail}")
@@ -71,32 +55,13 @@ def update_target(android_ver: str, kernel_ver: str,
     entries.sort(key=lambda e: e["date"])
 
     # 更新 LTS
-    lts_label = f"{android_ver}-{kernel_ver}-lts"
-    print(f"  [{lts_label}] ", end="", flush=True)
-    lts_text = fetch_lts(android_ver, kernel_ver)
-    if lts_text is None:
-        print("not found, skip")
-    else:
-        ver = parse_version(lts_text)
-        if ver is None:
-            print("parse failed, skip")
-        else:
-            version, patchlevel, sublevel = ver
-            lts_value = f"{version}.{patchlevel}.{sublevel}"
-            old_lts = data.get("lts")
-            if old_lts != lts_value:
-                changed = True
-                print(f"-> {lts_value} (was {old_lts})")
-            else:
-                print(f"-> {lts_value} (unchanged)")
-            data["lts"] = lts_value
+    if refresh_lts(data, android_ver, kernel_ver):
+        changed = True
 
     # 保存
     data["entries"] = entries
     if changed:
-        os.makedirs(os.path.dirname(path), exist_ok=True)
-        with open(path, "w", encoding="utf-8") as f:
-            json.dump(data, f, indent=2, ensure_ascii=False)
+        write_json(path, data)
         print(f"  => Saved {len(entries)} entries to {path}")
     else:
         print(f"  => No changes")

@@ -5,8 +5,6 @@
 
 package com.abk.kernel.ui.screens
 
-import android.content.ClipData
-import android.content.ClipboardManager
 import android.content.Context
 import android.net.Uri
 import android.provider.OpenableColumns
@@ -101,6 +99,7 @@ import com.abk.kernel.ui.components.ExpressiveListItem
 import com.abk.kernel.ui.components.ExpressiveTopBar
 import com.abk.kernel.ui.theme.uiSurfaceColor
 import com.abk.kernel.utils.RootUtils
+import com.abk.kernel.utils.copyToClipboard
 import java.io.File
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -284,9 +283,7 @@ fun AbkRootPatchScreen(
     }
 
     fun copyText(label: String, value: String) {
-        val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-        clipboard.setPrimaryClip(ClipData.newPlainText(label, value))
-        Toast.makeText(context, copiedMessage, Toast.LENGTH_SHORT).show()
+        context.copyToClipboard(label = label, text = value, toastMessage = copiedMessage)
     }
 
     val bootPicker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->

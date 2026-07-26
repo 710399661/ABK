@@ -3,11 +3,6 @@
 package com.abk.kernel.ui.screens
 
 import com.abk.kernel.ui.screens.flash.*
-import android.content.Intent
-import android.net.Uri
-import android.content.ClipData
-import android.content.ClipboardManager
-import android.content.Context
 import android.widget.Toast
 import androidx.activity.compose.BackHandler
 import androidx.annotation.StringRes
@@ -213,6 +208,7 @@ import com.abk.kernel.ui.components.ExpressiveTopBar
 import com.abk.kernel.ui.theme.uiSurfaceColor
 import com.abk.kernel.utils.DownloadUtils
 import com.abk.kernel.utils.RootUtils
+import com.abk.kernel.utils.copyToClipboard
 import java.io.File
 import com.abk.kernel.viewmodel.MainViewModel
 import com.abk.kernel.viewmodel.mergeWorkflowActiveDownloads
@@ -604,9 +600,11 @@ fun FlashScreen(
     }
 
     fun copyDownloadedFilePath(item: DownloadedArtifact) {
-        val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-        clipboard.setPrimaryClip(ClipData.newPlainText(item.name, item.filePath))
-        Toast.makeText(context, context.getString(R.string.flash_copy_path_done), Toast.LENGTH_SHORT).show()
+        context.copyToClipboard(
+            label = item.name,
+            text = item.filePath,
+            toastMessage = context.getString(R.string.flash_copy_path_done)
+        )
     }
 
     fun appendTerminalOutput(line: String) {
